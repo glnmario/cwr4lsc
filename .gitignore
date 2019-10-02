@@ -2,7 +2,7 @@ data/
 models/
 
 # Pycharm
-idea/
+*.idea/
 *.xml
 *.iml
 
