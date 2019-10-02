@@ -2,7 +2,7 @@ data/*
 models/bert-base-uncased/*
 
 # Pycharm
-.idea/*
+/.idea/*
 *.xml
 *.iml
 
