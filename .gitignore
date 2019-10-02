@@ -1,8 +1,8 @@
-data/*
-models/bert-base-uncased/*
+data/
+models/
 
 # Pycharm
-/.idea/*
+.idea/
 *.xml
 *.iml
 
