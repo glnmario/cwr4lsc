@@ -31,12 +31,13 @@ def get_context(token_ids, target_position, sequence_length=128):
     return context_ids, new_target_position
 
 
-def collect_from_coha(target_words, decades, pretrained_weights='models/bert-base-uncased', buffer_size=1024):
+def collect_from_coha(target_words, decades, sequence_length, pretrained_weights='models/bert-base-uncased', buffer_size=1024):
     """
     Collect usages of target words from the COHA dataset.
 
     :param target_words: list of words whose usages are to be collected
     :param decades: list of year integers (e.g. list(np.arange(1910, 2001, 10)))
+    :param sequence_length: the number of tokens in the context of a word occurrence
     :param pretrained_weights: path to model folder with weights and config file
     :param buffer_size: (max) number of usages to process in a single model run
     :return: usages: a dictionary from target words to lists of usage tuples
@@ -81,18 +82,20 @@ def collect_from_coha(target_words, decades, pretrained_weights='models/bert-bas
                 # store usage info of target words only
                 if token in i2w:
 
-                    context_ids, pos_in_context = get_context(tokens, pos)
+                    context_ids, pos_in_context = get_context(tokens, pos, sequence_length)
                     input_ids = [101] + context_ids + [102]
-                    snippet = tokenizer.convert_ids_to_tokens(context_ids)
+
+                    # convert later to save storage space
+                    # snippet = tokenizer.convert_ids_to_tokens(context_ids)
 
                     # add usage info to buffers
                     batch_input_ids.append(input_ids)
                     batch_tokens.append(i2w[token])
                     batch_pos.append(pos_in_context)
-                    batch_snippets.append(snippet)
+                    batch_snippets.append(context_ids)
                     batch_decades.append(decade)
 
-                # if the buffers are full...            or if we're at the end of the dataset
+                # if the buffers are full...             or if we're at the end of the dataset
                 if (len(batch_input_ids) >= buffer_size) or (L == len(lines) - 1 and T == len(decades) - 1):
 
                     with torch.no_grad():
@@ -111,6 +114,9 @@ def collect_from_coha(target_words, decades, pretrained_weights='models/bert-bas
                         # get usage vectors from hidden states
                         hidden_states = torch.stack(hidden_states)  # (13, B, |s|, 768)
                         usage_vectors = np.sum(hidden_states.data.numpy(), 0)  # (B, |s|, 768)  # todo: test with CUDA
+                        # usage_vectors = hidden_states.view(hidden_states.shape[1],
+                        #                                    hidden_states.shape[2],
+                        #                                    -1)
 
                     # store usage tuples in a dictionary: lemma -> (vector, snippet, position, decade)
                     for b in np.arange(len(batch_input_ids)):
