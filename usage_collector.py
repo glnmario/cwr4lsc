@@ -31,7 +31,12 @@ def get_context(token_ids, target_position, sequence_length=128):
     return context_ids, new_target_position
 
 
-def collect_from_coha(target_words, decades, sequence_length, pretrained_weights='models/bert-base-uncased', buffer_size=1024):
+def collect_from_coha(target_words,
+                      decades,
+                      sequence_length,
+                      pretrained_weights='models/bert-base-uncased',
+                      coha_dir='data/coha',
+                      buffer_size=1024):
     """
     Collect usages of target words from the COHA dataset.
 
@@ -39,6 +44,7 @@ def collect_from_coha(target_words, decades, sequence_length, pretrained_weights
     :param decades: list of year integers (e.g. list(np.arange(1910, 2001, 10)))
     :param sequence_length: the number of tokens in the context of a word occurrence
     :param pretrained_weights: path to model folder with weights and config file
+    :param coha_dir: path to COHA directory (containing `all_1810.txt`, ..., `all_2000.txt`)
     :param buffer_size: (max) number of usages to process in a single model run
     :return: usages: a dictionary from target words to lists of usage tuples
              lemma -> [(vector, sentence, word_position, decade), (v, s, p, d), ...]
@@ -69,7 +75,7 @@ def collect_from_coha(target_words, decades, sequence_length, pretrained_weights
     for T, decade in enumerate(decades):
         # one time interval at a time
         print('Decade {}...'.format(decade))
-        with open('data/coha/all_{}.txt'.format(decade), 'r') as f:
+        with open('{}/all_{}.txt'.format(coha_dir, decade), 'r') as f:
             lines = f.readlines()
 
         for L, line in enumerate(tqdm(lines)):
