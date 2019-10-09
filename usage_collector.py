@@ -111,7 +111,7 @@ def collect_from_coha(target_words,
                         # collect list of input ids into a single batch tensor
                         input_ids_tensor = torch.tensor(batch_input_ids)
                         if torch.cuda.is_available():
-                            input_ids_tensor.to('cuda')
+                            input_ids_tensor = input_ids_tensor.to('cuda')
 
                         # run usages through language model
                         outputs = model(input_ids_tensor)
