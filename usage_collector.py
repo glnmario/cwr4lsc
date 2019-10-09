@@ -51,6 +51,9 @@ def collect_from_coha(target_words,
     """
 
     # load model and tokenizer
+    if torch.cuda.is_available():
+        print('TO-CUDA!')
+
     tokenizer = BertTokenizer.from_pretrained(pretrained_weights)
     model = BertModel.from_pretrained(pretrained_weights)
     if torch.cuda.is_available():
