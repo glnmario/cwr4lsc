@@ -17,7 +17,6 @@ targets = ['net', 'virtual', 'disk', 'card', 'optical', 'virus',
            'signal', 'mirror', 'energy', 'compact', 'leaf',
            'brick', 'federal', 'sphere', 'coach', 'spine']
 
-
 for seq_len in args.seqlen:
     print('{}\nSEQUENCE LENGTH: {}\n{}'.format('-'*30, seq_len, '-'*30))
 
@@ -25,12 +24,24 @@ for seq_len in args.seqlen:
     # decades = list(np.arange(1810, 1811, 10))
 
     usages = collect_from_coha(targets,
-                               decades,
+                               list(np.arange(1910, 1959, 10)),
                                sequence_length=seq_len,
                                pretrained_weights=args.bertdir,
                                coha_dir=args.cohadir,
                                buffer_size=args.buffer)
 
     # Save usages
-    with open('{}/usages_16_len{}.dict'.format(args.outdir, seq_len), 'wb') as f:
+    with open('{}/usages_16_len{}_1910-1950.dict'.format(args.outdir, seq_len), 'wb') as f:
+        pickle.dump(usages, file=f)
+    usages = None
+
+    usages = collect_from_coha(targets,
+                               list(np.arange(1960, 2009, 10)),
+                               sequence_length=seq_len,
+                               pretrained_weights=args.bertdir,
+                               coha_dir=args.cohadir,
+                               buffer_size=args.buffer)
+
+    # Save usages
+    with open('{}/usages_16_len{}_1960-2000.dict'.format(args.outdir, seq_len), 'wb') as f:
         pickle.dump(usages, file=f)
