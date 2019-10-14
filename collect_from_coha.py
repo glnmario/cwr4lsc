@@ -32,6 +32,6 @@ for decade in np.arange(1910, 2009, 10):
                                buffer_size=args.buffer)
 
     # Save usages
-    with open('{}/usages_16_len{}_{}.dict'.format(args.outdir, args.seqlen, decade), 'wb') as f:
+    with open('{}/concat/usages_16_len{}_{}.dict'.format(args.outdir, args.seqlen, decade), 'wb') as f:
         pickle.dump(usages, file=f)
     usages = None
