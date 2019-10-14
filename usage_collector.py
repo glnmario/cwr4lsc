@@ -116,17 +116,17 @@ def collect_from_coha(target_words,
                         # run usages through language model
                         outputs = model(input_ids_tensor)
                         if torch.cuda.is_available():
-                            hidden_states = [l.detach().cpu().clone().numpy() for l in outputs[2]]  # todo: test with CUDA
+                            hidden_states = [l.detach().cpu().clone().numpy() for l in outputs[2]]
                         else:
                             hidden_states = [l.clone().numpy() for l in outputs[2]]
 
                         # get usage vectors from hidden states
                         hidden_states = np.stack(hidden_states)  # (13, B, |s|, 768)
-                        print('Expected hidden states size: (13, B, |s|, 768). Got {}'.format(hidden_states.shape))
-                        usage_vectors = np.sum(hidden_states, 0)  # (B, |s|, 768)  # todo: test with CUDA
-                        # usage_vectors = hidden_states.view(hidden_states.shape[1],
-                        #                                    hidden_states.shape[2],
-                        #                                    -1)
+                        # print('Expected hidden states size: (13, B, |s|, 768). Got {}'.format(hidden_states.shape))
+                        # usage_vectors = np.sum(hidden_states, 0)  # (B, |s|, 768)
+                        usage_vectors = hidden_states.view(hidden_states.shape[1],
+                                                           hidden_states.shape[2],
+                                                           -1)
 
                     # store usage tuples in a dictionary: lemma -> (vector, snippet, position, decade)
                     for b in np.arange(len(batch_input_ids)):
