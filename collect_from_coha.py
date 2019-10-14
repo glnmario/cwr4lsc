@@ -24,7 +24,7 @@ for seq_len in args.seqlen:
     # decades = list(np.arange(1910, 2001, 10))
     # decades = list(np.arange(1810, 1811, 10))
 
-    for decade in np.arange(1960, 2009, 10):
+    for decade in np.arange(1910, 2009, 10):
         usages = collect_from_coha(targets,
                                    [decade],
                                    sequence_length=seq_len,
