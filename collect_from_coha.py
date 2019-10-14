@@ -4,7 +4,7 @@ import numpy as np
 from usage_collector import collect_from_coha
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--seqlen', type=list, default=[128])
+parser.add_argument('--seqlen', type=int, default=128)
 parser.add_argument('--bertdir', type=str, default='models/bert-base-uncased')
 parser.add_argument('--cohadir', type=str, default='data/coha')
 parser.add_argument('--outdir', type=str, default='data')
@@ -18,21 +18,20 @@ targets = ['net', 'virtual', 'disk', 'card', 'optical', 'virus',
            'brick', 'federal', 'sphere', 'coach', 'spine']
 
 
-for seq_len in args.seqlen:
-    print('{}\nSEQUENCE LENGTH: {}\n{}'.format('-'*30, seq_len, '-'*30))
+print('{}\nSEQUENCE LENGTH: {}\n{}'.format('-'*30, args.seqlen, '-'*30))
 
-    # decades = list(np.arange(1910, 2001, 10))
-    # decades = list(np.arange(1810, 1811, 10))
+# decades = list(np.arange(1910, 2001, 10))
+# decades = list(np.arange(1810, 1811, 10))
 
-    for decade in np.arange(1910, 2009, 10):
-        usages = collect_from_coha(targets,
-                                   [decade],
-                                   sequence_length=seq_len,
-                                   pretrained_weights=args.bertdir,
-                                   coha_dir=args.cohadir,
-                                   buffer_size=args.buffer)
+for decade in np.arange(1910, 2009, 10):
+    usages = collect_from_coha(targets,
+                               [decade],
+                               sequence_length=args.seqlen,
+                               pretrained_weights=args.bertdir,
+                               coha_dir=args.cohadir,
+                               buffer_size=args.buffer)
 
-        # Save usages
-        with open('{}/usages_16_len{}_{}.dict'.format(args.outdir, seq_len, decade), 'wb') as f:
-            pickle.dump(usages, file=f)
-        usages = None
+    # Save usages
+    with open('{}/usages_16_len{}_{}.dict'.format(args.outdir, args.seqlen, decade), 'wb') as f:
+        pickle.dump(usages, file=f)
+    usages = None
