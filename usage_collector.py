@@ -1,3 +1,6 @@
+import os
+import pickle
+
 import torch
 import numpy as np
 from tqdm import tqdm
@@ -36,6 +39,7 @@ def collect_from_coha(target_words,
                       sequence_length,
                       pretrained_weights='models/bert-base-uncased',
                       coha_dir='data/coha',
+                      output_path=None,
                       buffer_size=1024):
     """
     Collect usages of target words from the COHA dataset.
@@ -45,9 +49,11 @@ def collect_from_coha(target_words,
     :param sequence_length: the number of tokens in the context of a word occurrence
     :param pretrained_weights: path to model folder with weights and config file
     :param coha_dir: path to COHA directory (containing `all_1810.txt`, ..., `all_2000.txt`)
+    :param output_path: path to output file for `usages` dictionary. If provided, data is stored
+                        in this file incrementally (use e.g. to avoid out of memory errors)
     :param buffer_size: (max) number of usages to process in a single model run
     :return: usages: a dictionary from target words to lists of usage tuples
-             lemma -> [(vector, sentence, word_position, decade), (v, s, p, d), ...]
+                     lemma -> [(vector, sentence, word_position, decade), (v, s, p, d), ...]
     """
 
     # load model and tokenizer
@@ -129,6 +135,9 @@ def collect_from_coha(target_words,
                         #                                    -1)
                         usage_vectors = hidden_states.reshape((hidden_states.shape[1], hidden_states.shape[2], -1))
 
+                    if output_path and os.path.exists(output_path):
+                        usages = pickle.load(output_path)
+
                     # store usage tuples in a dictionary: lemma -> (vector, snippet, position, decade)
                     for b in np.arange(len(batch_input_ids)):
                         usage_vector = usage_vectors[b, batch_pos[b]+1, :]
@@ -137,5 +146,10 @@ def collect_from_coha(target_words,
 
                     # finally, empty the batch buffers
                     batch_input_ids, batch_tokens, batch_pos, batch_snippets, batch_decades = [], [], [], [], []
+
+                    # and store data incrementally
+                    if output_path:
+                        with open(output_path, 'wb') as f:
+                            pickle.dump(usages, file=f)
 
     return usages
