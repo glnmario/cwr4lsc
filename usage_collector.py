@@ -136,7 +136,8 @@ def collect_from_coha(target_words,
                         usage_vectors = hidden_states.reshape((hidden_states.shape[1], hidden_states.shape[2], -1))
 
                     if output_path and os.path.exists(output_path):
-                        usages = pickle.load(output_path)
+                        with open(output_path, 'rb') as f:
+                            usages = pickle.load(f)
 
                     # store usage tuples in a dictionary: lemma -> (vector, snippet, position, decade)
                     for b in np.arange(len(batch_input_ids)):
