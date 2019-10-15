@@ -81,7 +81,7 @@ def collect_from_coha(target_words,
         with open('{}/all_{}.txt'.format(coha_dir, decade), 'r') as f:
             lines = f.readlines()
 
-        for L, line in enumerate(tqdm(lines)):
+        for L, line in enumerate(lines):
 
             # tokenize line and convert to token ids
             tokens = tokenizer.encode(line)
@@ -128,6 +128,7 @@ def collect_from_coha(target_words,
                         #                                    hidden_states.shape[2],
                         #                                    -1)
                         usage_vectors = hidden_states.reshape((hidden_states.shape[1], hidden_states.shape[2], -1))
+
                     # store usage tuples in a dictionary: lemma -> (vector, snippet, position, decade)
                     for b in np.arange(len(batch_input_ids)):
                         usage_vector = usage_vectors[b, batch_pos[b]+1, :]
