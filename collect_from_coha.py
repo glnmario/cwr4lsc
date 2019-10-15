@@ -12,26 +12,25 @@ parser.add_argument('--buffer', type=int, default=1024)
 
 args = parser.parse_args()
 
-
 targets = ['net', 'virtual', 'disk', 'card', 'optical', 'virus',
            'signal', 'mirror', 'energy', 'compact', 'leaf',
            'brick', 'federal', 'sphere', 'coach', 'spine']
 
-
-print('{}\nSEQUENCE LENGTH: {}\n{}'.format('-'*30, args.seqlen, '-'*30))
+print('{}\nSEQUENCE LENGTH: {}\n{}'.format('-' * 30, args.seqlen, '-' * 30))
 
 # decades = list(np.arange(1910, 2001, 10))
 # decades = list(np.arange(1810, 1811, 10))
 
 for decade in np.arange(1910, 2009, 10):
-    usages = collect_from_coha(targets,
-                               [decade],
-                               sequence_length=args.seqlen,
-                               pretrained_weights=args.bertdir,
-                               coha_dir=args.cohadir,
-                               buffer_size=args.buffer)
+    collect_from_coha(targets,
+                      [decade],
+                      sequence_length=args.seqlen,
+                      pretrained_weights=args.bertdir,
+                      coha_dir=args.cohadir,
+                      output_path='{}/concat/usages_16_len{}_{}.dict'.format(args.outdir, args.seqlen, decade),
+                      buffer_size=args.buffer)
 
-    # Save usages
-    with open('{}/concat/usages_16_len{}_{}.dict'.format(args.outdir, args.seqlen, decade), 'wb') as f:
-        pickle.dump(usages, file=f)
-    usages = None
+    # # Save usages
+    # with open('{}/concat/usages_16_len{}_{}.dict'.format(args.outdir, args.seqlen, decade), 'wb') as f:
+    #     pickle.dump(usages, file=f)
+    # usages = None
