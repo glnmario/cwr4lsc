@@ -101,7 +101,7 @@ def usage_distribution(predictions, time_labels):
     return usage_distr
 
 
-def make_usage_matrix(dict_path, mode='concat', usages_out=None, ndims=768):
+def make_usage_matrices(dict_path, mode='concat', usages_out=None, ndims=768):
     """
     Take as input a usage dictionary containing single usage vectors (and their metadata)
     and return a dictionary that maps lemmas to usage matrices (and the same metadata).
@@ -141,23 +141,43 @@ def make_usage_matrix(dict_path, mode='concat', usages_out=None, ndims=768):
     return usages_out
 
 
+def cluster_usages(Uw, method='kmeans', k_range=np.arange(2, 11), criterion='silhouette'):
+    """
+    Return the best clustering model for a usage matrix.
+
+    :param Uw: usage matrix
+    :param method: K-Means or Gaussian Mixture Model ('kmeans' or 'gmm')
+    :param k_range: range of possible K values (number of clusters)
+    :param criterion: K selection criterion; depends on clustering method
+    :return: best clustering model
+    """
+    # standardize usage matrix by removing the mean and scaling to unit variance
+    X = preprocessing.StandardScaler().fit_transform(Uw)
+
+    # get best model according to a K-selection criterion
+    if method == 'kmeans':
+        best_model, scores = best_kmeans(X, k_range, criterion=criterion)
+    elif method == 'gmm':
+        raise NotImplementedError('Gaussian Mixture Model not yet implemented!')
+    else:
+        raise ValueError('Invalid method "{}". Choose "kmeans" or "gmm".'.format(method))
+
+    return best_model
+
+
 def plot_usage_distribution(usages, out_dir, normalized=False):
     """
     Save plots of probability- or frequency-based usage distributions.
 
-    :param usages: a dictionary mapping lemmas to their usage matrix
+    :param usages: a dictionary mapping lemmas to their (best) clustering model
     :param out_dir: output directory for plots
     :param normalized: whether to normalize usage distributions
     """
     for word in usages:
         # get lemma-specific data and metadata
-        Uw, contexts, positions, t_labels = usages[word]
+        Uw, _, _, t_labels = usages[word]
 
-        # standardize usage matrix by removing the mean and scaling to unit variance
-        X = preprocessing.StandardScaler().fit_transform(Uw)
-
-        # get best K-Means model according to a K-selection criterion
-        best_model, scores = best_kmeans(X, np.arange(2, 11), criterion='silhouette')
+        best_model = cluster_usages(Uw)  # todo: specify clustering method
 
         # create usage distribution based on clustering results
         usage_distr = usage_distribution(best_model.labels_, t_labels)
@@ -219,6 +239,11 @@ def clustering_intersection(models):
             meta_labels[i] = meta_label
 
     return meta_labels
+
+
+def collect_snippets():
+
+    snippets = dict
 
 
 @deprecated('Compute clustering instersection instead!')
