@@ -1,5 +1,6 @@
 import logging
 import pickle
+from collections import defaultdict
 
 import numpy as np
 import networkx as nx
@@ -165,19 +166,40 @@ def cluster_usages(Uw, method='kmeans', k_range=np.arange(2, 11), criterion='sil
     return best_model
 
 
-def plot_usage_distribution(usages, out_dir, normalized=False):
+def obtain_clusterings(usages, out_path, method='kmeans', k_range=np.arange(2, 11), criterion='silhouette'):
+    """
+    Return and save dictionary mapping lemmas to their best clustering model, given a method-criterion pair.
+
+    :param usages: dictionary mapping lemmas to their tensor data and metadata
+    :param out_path: output path to store clustering models
+    :param method: K-Means or Gaussian Mixture Model ('kmeans' or 'gmm')
+    :param k_range: range of possible K values (number of clusters)
+    :param criterion: K selection criterion; depends on clustering method
+    :return: dictionary mapping lemmas to their best clustering model
+    """
+    clusterings = {}  # dictionary mapping lemmas to their best clustering
+    for w in usages:
+        Uw, _, _, _ = usages[w]
+        clusterings[w] = cluster_usages(Uw, method, k_range, criterion)
+
+    with open(out_path, 'wb') as f:
+        pickle.dump(clusterings, file=f)
+
+    return clusterings
+
+
+def plot_usage_distribution(usages, clusterings, out_dir, normalized=False):
     """
     Save plots of probability- or frequency-based usage distributions.
 
-    :param usages: a dictionary mapping lemmas to their (best) clustering model
+    :param usages: dictionary mapping lemmas to their tensor data and metadata
+    :param clusterings: dictionary mapping lemmas to their best clustering model
     :param out_dir: output directory for plots
     :param normalized: whether to normalize usage distributions
     """
-    for word in usages:
-        # get lemma-specific data and metadata
-        Uw, _, _, t_labels = usages[word]
-
-        best_model = cluster_usages(Uw)  # todo: specify clustering method
+    for word in clusterings:
+        _, _, _, t_labels = usages[word]
+        best_model = clusterings[word]
 
         # create usage distribution based on clustering results
         usage_distr = usage_distribution(best_model.labels_, t_labels)
@@ -241,9 +263,31 @@ def clustering_intersection(models):
     return meta_labels
 
 
-def collect_snippets():
+# todo: from wordpieces back to words
+def parse_snippet(snippet):
+    return snippet
 
-    snippets = dict
+
+def collect_snippets(usages, clusterings):
+    """
+    Collect usage snippets and organise them according to their usage type and time interval.
+
+    :param usages: dictionary mapping lemmas to their tensor data and metadata
+    :param clusterings: dictionary mapping lemmas to their best clustering model
+    :return: dictionary mapping (lemma, cluster, time) triplets to lists of usage snippets
+    """
+    snippets = {}  # (lemma, cluster_id, time_interval) -> [(<s>, ..., <\s>), (<s>, ..., <\s>), ...]
+
+    for word in usages:
+        snippets[word] = defaultdict(lambda: defaultdict(list))
+
+        _, contexts, _, t_labels = usages[word]
+        cl_labels = clusterings[word].labels_
+
+        for context, cl, t in zip(contexts, cl_labels, t_labels):
+            snippets[word][cl][t].append(parse_snippet(context))
+
+    return snippets
 
 
 @deprecated('Compute clustering instersection instead!')
