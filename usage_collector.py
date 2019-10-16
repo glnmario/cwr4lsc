@@ -57,9 +57,6 @@ def collect_from_coha(target_words,
     """
 
     # load model and tokenizer
-    if torch.cuda.is_available():
-        print('TO-CUDA!')
-
     tokenizer = BertTokenizer.from_pretrained(pretrained_weights)
     model = BertModel.from_pretrained(pretrained_weights)
     if torch.cuda.is_available():
@@ -70,15 +67,14 @@ def collect_from_coha(target_words,
     for t, t_id in zip(target_words, tokenizer.encode(' '.join(target_words))):
         i2w[t_id] = t
 
-    usages = defaultdict(list)  # w -> (vector, sentence, word_position, decade)
-    # cluster_proportions = {}  # w -> M(decades x clusters)
-
     # buffers for batch processing
     batch_input_ids = []
     batch_tokens = []
     batch_pos = []
     batch_snippets = []
     batch_decades = []
+
+    usages = defaultdict(list)  # w -> (vector, sentence, word_position, decade)
 
     # do collection
     for T, decade in enumerate(decades):
