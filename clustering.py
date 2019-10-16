@@ -17,8 +17,10 @@ import plotly.io as pio
 
 
 # Preamble
+from transformers import BertTokenizer
+
 logging.basicConfig(level=logging.INFO)
-SEED = 42
+np.random.seed(0)
 
 
 def best_kmeans(X, max_range=np.arange(2, 11), criterion='silhouette'):
@@ -263,34 +265,58 @@ def clustering_intersection(models):
     return meta_labels
 
 
-# todo: from wordpieces back to words
-def parse_snippet(snippet):
-    return snippet
+def parse_snippet(snippet, tokenizer, target_position):
+    """
+    Parse a list of wordpiece token ids into a human-readable sentence string.
+
+    :param snippet: list of token ids
+    :param tokenizer: BertTokenizer object
+    :param target_position: position of the target word in the token list
+    :return: sentence string with highlighted target word and reassebled word pieces
+    """
+    sentence = ''
+    tokens = tokenizer.convert_ids_to_tokens(snippet)
+
+    for pos, token in enumerate(tokens):
+        if token not in [',', '.', ';', ':', '!', '?'] and not token.startswith('##'):
+            sentence += ' '
+
+        if pos == target_position:
+            sentence += '[[{}]]'.format(token)
+        else:
+            if token.startswith('##'):
+                sentence += token[2:]
+            else:
+                sentence += token
+
+    return sentence
 
 
-def prepare_snippets(usages, clusterings):
+def prepare_snippets(usages, clusterings, pretrained_weights='models/bert-base-uncased'):
     """
     Collect usage snippets and organise them according to their usage type and time interval.
 
     :param usages: dictionary mapping lemmas to their tensor data and metadata
     :param clusterings: dictionary mapping lemmas to their best clustering model
+    :param pretrained_weights: path to BERT model folder with weights and config file
     :return: dictionary mapping (lemma, cluster, time) triplets to lists of usage snippets
     """
     snippets = {}  # (lemma, cluster_id, time_interval) -> [(<s>, ..., <\s>), (<s>, ..., <\s>), ...]
+    tokenizer = BertTokenizer.from_pretrained(pretrained_weights)
 
-    for word in usages:
+    for word in tqdm(usages):
         snippets[word] = defaultdict(lambda: defaultdict(list))
 
-        _, contexts, _, t_labels = usages[word]
+        _, contexts, positions, t_labels = usages[word]
         cl_labels = clusterings[word].labels_
 
-        for context, cl, t in zip(contexts, cl_labels, t_labels):
-            snippets[word][cl][t].append(parse_snippet(context))
+        for context, pos, cl, t in zip(contexts, positions, cl_labels, t_labels):
+            snippets[word][cl][t].append(parse_snippet(context, tokenizer, pos))
 
     return snippets
 
 
-def sample_snippets(snippets, time_periods=np.arange(1910, 2009, 10)):
+def sample_snippets(snippets, time_periods):
     """
     Sample usage examples for each word of interest according to the following procedure.
     For each cluster, uniformly sample a usage snippet for every time period where that cluster appears.
@@ -305,20 +331,30 @@ def sample_snippets(snippets, time_periods=np.arange(1910, 2009, 10)):
     snippet_lists = defaultdict(list)
     snippet_labels = defaultdict(list)
 
-    for w in snippets:
+    for w in tqdm(snippets):
         for cl in snippets[w]:
             for t in time_periods:
                 population = snippets[w][cl][t]
                 sample = None
 
+                # print("snippet_lists", snippet_lists[w])
                 while (sample is None) or (sample in snippet_lists[w]):
+                    # print("snippet_lists", snippet_lists[w])
+                    # print("pop", population)
                     if population:
-                        sample = np.random.choice(population)
+                        # print('not empty')
+                        sample_idx = np.random.choice(np.arange(len(population)))
+                        sample = population[sample_idx]
+                        # print(snippet_lists[w], sample)
+                        # print(sample in snippet_lists[w])
                     else:
+                        # print('empty')
                         # if there are no snippets of cluster `cl` in time `t`, uniformly sample
                         # an alternative time interval to draw a usage example from
-                        population = snippets[w][cl][np.random.choice(snippets[w][cl].keys())]
-                        sample = np.random.choice(population)
+                        sample_t = np.random.choice(list(snippets[w][cl].keys()))
+                        # print(t, sample_t)
+                        population = snippets[w][cl][sample_t]
+
 
                 snippet_lists[w].append(sample)
                 snippet_labels[w].append((cl, t))
