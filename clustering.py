@@ -268,7 +268,7 @@ def parse_snippet(snippet):
     return snippet
 
 
-def collect_snippets(usages, clusterings):
+def prepare_snippets(usages, clusterings):
     """
     Collect usage snippets and organise them according to their usage type and time interval.
 
@@ -288,6 +288,42 @@ def collect_snippets(usages, clusterings):
             snippets[word][cl][t].append(parse_snippet(context))
 
     return snippets
+
+
+def sample_snippets(snippets, time_periods=np.arange(1910, 2009, 10)):
+    """
+    Sample usage examples for each word of interest according to the following procedure.
+    For each cluster, uniformly sample a usage snippet for every time period where that cluster appears.
+    If the cluster does not appear in a certain time period, sample an alternative time period uniformly.
+
+    :param snippets: dictionary mapping (lemma, cluster, time) triplets to lists of usage snippets
+    :param time_periods: range of time periods of interest
+    :return: snippet_lists, snippet_labels
+             snippet_lists: dictionary mapping lemmas to their usage examples
+             snippet_labels: dictionary mapping lemmas to the (cluster, time) labels of their usage examples
+    """
+    snippet_lists = defaultdict(list)
+    snippet_labels = defaultdict(list)
+
+    for w in snippets:
+        for cl in snippets[w]:
+            for t in time_periods:
+                population = snippets[w][cl][t]
+                sample = None
+
+                while (sample is None) or (sample in snippet_lists[w]):
+                    if population:
+                        sample = np.random.choice(population)
+                    else:
+                        # if there are no snippets of cluster `cl` in time `t`, uniformly sample
+                        # an alternative time interval to draw a usage example from
+                        population = snippets[w][cl][np.random.choice(snippets[w][cl].keys())]
+                        sample = np.random.choice(population)
+
+                snippet_lists[w].append(sample)
+                snippet_labels[w].append((cl, t))
+
+    return snippet_lists, snippet_labels
 
 
 @deprecated('Compute clustering instersection instead!')
