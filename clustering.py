@@ -29,7 +29,7 @@ np.random.seed(SEED)
 
 def best_kmeans(X, max_range=np.arange(2, 11), criterion='silhouette'):
     """
-    Returns the best K-Means clustering given the data, a range of K values, and a K-selection criterion.
+    Return the best K-Means clustering given the data, a range of K values, and a K-selection criterion.
 
     :param X: usage matrix (made of usage vectors)
     :param max_range: range within the number of clusters should lie
@@ -61,10 +61,10 @@ def best_kmeans(X, max_range=np.arange(2, 11), criterion='silhouette'):
     return best_model, scores
 
 
-
-
-
 class GMM(object):
+    """
+    A Gaussian Mixture Model object, with its number of components, AIC and BIC scores.
+    """
     def __init__(self, model=None):
         self.model = model
 
@@ -90,10 +90,24 @@ class GMM(object):
 
 def best_gmm(X,
              max_range=np.arange(2, 11),
-             covariance_types=['full', 'spherical', 'tied', 'diag'],
+             covariance_types=None,
              max_iter=1000,
              n_init=5,
              seed=SEED):
+    """
+    Return the best Gaussian Mixture Model given the data, a range of K values, and two K selection criteria.
+
+    :param X: usage matrix (made of usage vectors)
+    :param max_range: range within the number of clusters should lie
+    :param covariance_types: a list containing any subset of this list:
+    :param max_iter: maximum number of EM iterations
+    :param n_init: number of EM runs
+    :param seed: random seed
+    :return: best GMM according to Akaike Information Criterion, Bayesian Information Criterion,
+             and the respective AIC and BIC scores
+    """
+    if covariance_types is None:
+        covariance_types = ['full', 'spherical', 'tied', 'diag']
     if not isinstance(covariance_types, (list,)):
         covariance_types = [covariance_types]
 
