@@ -200,6 +200,8 @@ def make_usage_matrices(dict_path, mode='concat', usages_out=None, ndims=768):
         usages_in = pickle.load(f)
 
     ndims_old = usages_in[list(usages_in.keys())[0]][0][0].shape[-1]
+    print('ndims_old:', ndims_old)
+
     if usages_out is None:
         usages_out = {}
         for w in usages_in:
