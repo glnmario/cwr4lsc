@@ -199,10 +199,11 @@ def make_usage_matrices(dict_path, mode='concat', usages_out=None, ndims=768):
     with open(dict_path, 'rb') as f:
         usages_in = pickle.load(f)
 
+    ndims_old = usages_in[list(usages_in.keys())[0]][0][0].shape[-1]
     if usages_out is None:
         usages_out = {}
         for w in usages_in:
-            usages_out[w] = (np.empty((0, ndims)), [], [], [])
+            usages_out[w] = (np.empty((0, ndims_old)), [], [], [])
 
     for w in tqdm(usages_in):
         for (vec, context, pos_in_context, decade) in usages_in[w]:
