@@ -13,6 +13,7 @@ from string import ascii_uppercase
 from sklearn import preprocessing
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score, calinski_harabasz_score
+from sklearn.mixture import GaussianMixture
 
 import plotly.graph_objs as go
 import plotly.io as pio
@@ -58,6 +59,67 @@ def best_kmeans(X, max_range=np.arange(2, 11), criterion='silhouette'):
                 best_model, best_score = kmeans, score
 
     return best_model, scores
+
+
+
+
+
+class GMM(object):
+    def __init__(self, model=None):
+        self.model = model
+
+        if self.model:
+            self.k = self.model.weights_.shape[0]
+            self.covariance = self.model.covariance_type
+        else:
+            self.k = 0
+            self.covariance = None
+
+    def aic(self, X):
+        if self.model:
+            return self.model.aic(X)
+        else:
+            return float('inf')
+
+    def bic(self, X):
+        if self.model:
+            return self.model.bic(X)
+        else:
+            return float('inf')
+
+
+def best_gmm(X,
+             max_range=np.arange(2, 11),
+             covariance_types=['full', 'spherical', 'tied', 'diag'],
+             max_iter=1000,
+             n_init=5,
+             seed=SEED):
+    if not isinstance(covariance_types, (list,)):
+        covariance_types = [covariance_types]
+
+    aics = defaultdict(list)
+    bics = defaultdict(list)
+    best_gmm_aic = GMM()
+    best_gmm_bic = GMM()
+
+    for i, cov in enumerate(covariance_types):
+        for k in max_range:
+            m = GaussianMixture(
+                n_components=k,
+                covariance_type=cov,
+                max_iter=max_iter,
+                n_init=n_init,
+                random_state=seed).fit(X)
+
+            if m.aic(X) < best_gmm_aic.aic(X):
+                best_gmm_aic = GMM(m)
+            if m.bic(X) < best_gmm_bic.bic(X):
+                best_gmm_bic = GMM(m)
+
+            bics[cov].append(m.bic(X))
+            aics[cov].append(m.aic(X))
+
+    return best_gmm_aic, best_gmm_bic, bics, aics
 
 
 def to_one_hot(y, num_classes=None):
@@ -162,9 +224,15 @@ def cluster_usages(Uw, method='kmeans', k_range=np.arange(2, 11), criterion='sil
 
     # get best model according to a K-selection criterion
     if method == 'kmeans':
-        best_model, scores = best_kmeans(X, k_range, criterion=criterion)
+        best_model, _ = best_kmeans(X, k_range, criterion=criterion)
     elif method == 'gmm':
-        raise NotImplementedError('Gaussian Mixture Model not yet implemented!')
+        best_model_aic, best_model_bic, _, _ = best_gmm(X, k_range)
+        if criterion == 'aic':
+            best_model = best_model_aic
+        elif criterion == 'bic':
+            best_model = best_model_bic
+        else:
+            raise ValueError('Invalid criterion {}. Choose "aic" or "bic".'.format(criterion))
     else:
         raise ValueError('Invalid method "{}". Choose "kmeans" or "gmm".'.format(method))
 
