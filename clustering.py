@@ -1,5 +1,7 @@
+import itertools
 import logging
 import pickle
+import random
 from collections import defaultdict
 
 import numpy as np
@@ -20,7 +22,8 @@ import plotly.io as pio
 from transformers import BertTokenizer
 
 logging.basicConfig(level=logging.INFO)
-np.random.seed(0)
+SEED = 42
+np.random.seed(SEED)
 
 
 def best_kmeans(X, max_range=np.arange(2, 11), criterion='silhouette'):
@@ -286,19 +289,24 @@ def parse_snippet(snippet, tokenizer, target_position):
         else:
             if token.startswith('##'):
                 sentence += token[2:]
+            elif token == '[PAD]':
+                continue
+            elif token == '[UNK]':
+                sentence += 'UNK'
             else:
                 sentence += token
 
     return sentence
 
 
-def prepare_snippets(usages, clusterings, pretrained_weights='models/bert-base-uncased'):
+def prepare_snippets(usages, clusterings, pretrained_weights='models/bert-base-uncased', bin2label=None):
     """
     Collect usage snippets and organise them according to their usage type and time interval.
-
+ 
     :param usages: dictionary mapping lemmas to their tensor data and metadata
     :param clusterings: dictionary mapping lemmas to their best clustering model
     :param pretrained_weights: path to BERT model folder with weights and config file
+    :param bin2label: dictionary mapping time interval to time label
     :return: dictionary mapping (lemma, cluster, time) triplets to lists of usage snippets
     """
     snippets = {}  # (lemma, cluster_id, time_interval) -> [(<s>, ..., <\s>), (<s>, ..., <\s>), ...]
@@ -311,6 +319,8 @@ def prepare_snippets(usages, clusterings, pretrained_weights='models/bert-base-u
         cl_labels = clusterings[word].labels_
 
         for context, pos, cl, t in zip(contexts, positions, cl_labels, t_labels):
+            if bin2label:
+                t = bin2label[t]
             snippets[word][cl][t].append(parse_snippet(context, tokenizer, pos))
 
     return snippets
@@ -324,9 +334,8 @@ def sample_snippets(snippets, time_periods):
 
     :param snippets: dictionary mapping (lemma, cluster, time) triplets to lists of usage snippets
     :param time_periods: range of time periods of interest
-    :return: snippet_lists, snippet_labels
-             snippet_lists: dictionary mapping lemmas to their usage examples
-             snippet_labels: dictionary mapping lemmas to the (cluster, time) labels of their usage examples
+    :return: dictionary mapping lemmas to their usage examples as well as to the respective
+             cluster id and time interval labels.
     """
     snippet_lists = defaultdict(list)
     snippet_labels = defaultdict(list)
@@ -337,29 +346,66 @@ def sample_snippets(snippets, time_periods):
                 population = snippets[w][cl][t]
                 sample = None
 
-                # print("snippet_lists", snippet_lists[w])
                 while (sample is None) or (sample in snippet_lists[w]):
-                    # print("snippet_lists", snippet_lists[w])
-                    # print("pop", population)
                     if population:
-                        # print('not empty')
                         sample_idx = np.random.choice(np.arange(len(population)))
                         sample = population[sample_idx]
-                        # print(snippet_lists[w], sample)
-                        # print(sample in snippet_lists[w])
                     else:
-                        # print('empty')
                         # if there are no snippets of cluster `cl` in time `t`, uniformly sample
                         # an alternative time interval to draw a usage example from
                         sample_t = np.random.choice(list(snippets[w][cl].keys()))
-                        # print(t, sample_t)
                         population = snippets[w][cl][sample_t]
-
 
                 snippet_lists[w].append(sample)
                 snippet_labels[w].append((cl, t))
 
-    return snippet_lists, snippet_labels
+    sampled = defaultdict(list)
+    for w in snippet_lists:
+        for s_idx, (s, (cl, t)) in enumerate(zip(snippet_lists[w], snippet_labels[w])):
+            sampled[w].append((w, s_idx, cl, t, s))
+
+    return sampled
+
+
+def make_usage_pairs(snippets):
+    """
+    Obtain all possible usage pairs without repetitions from list of usages.
+
+    :param snippets: dictionary mapping lemmas to lists of annotation tuples (snippet_id, cluster_id, time, snippet)
+    :return: dictionary mapping lemmas to lists of annotated usage pairs
+    """
+    usage_pairs = defaultdict(list)
+    # obtain all possible pairs without repetitions
+    for w in snippets:
+        for pair in itertools.combinations(snippets[w], 2):
+            usage_pairs[w].append(pair)
+    # randomly shuffle order of pairs
+    for w in snippets:
+        random.shuffle(usage_pairs[w])
+
+    return usage_pairs
+
+
+def usage_pairs_tocsv(usage_pairs, output_path):
+    """
+    Store all usage pairs in a csv file.
+
+    :param usage_pairs: dictionary mapping lemmas to lists of annotated usage pairs
+    :param output_path: path of the output csv file containing all usage pair examples
+    """
+    all_pairs = []
+    for w in usage_pairs:
+        all_pairs.extend(usage_pairs[w])
+    random.shuffle(all_pairs)
+
+    fields = ['lemma', 'id_a', 'id_b', 'cluster_a', 'cluster_b', 'time_a', 'time_b', 'a', 'b']
+    with open(output_path, 'w') as f:
+        print(','.join(fields), file=f)
+        for u1, u2 in all_pairs:
+            (w1, s_idx_1, cl_1, t_1, s_1) = u1
+            (w2, s_idx_2, cl_2, t_2, s_2) = u2
+            assert(w1 == w2)
+            print(','.join(map(str, [w1, s_idx_1, s_idx_2, cl_1, cl_2, t_1, t_2, s_1, s_2])), file=f)
 
 
 @deprecated('Compute clustering instersection instead!')
