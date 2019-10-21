@@ -268,7 +268,7 @@ def obtain_clusterings(usages, out_path, method='kmeans', k_range=np.arange(2, 1
     :return: dictionary mapping lemmas to their best clustering model
     """
     clusterings = {}  # dictionary mapping lemmas to their best clustering
-    for w in usages:
+    for w in tqdm(usages):
         Uw, _, _, _ = usages[w]
         clusterings[w] = cluster_usages(Uw, method, k_range, criterion)
 
