@@ -219,8 +219,8 @@ def make_usage_matrices(dict_path, mode='concat', usages_out=None, ndims=768):
     if mode == 'sum':
         for w in usages_out:
             Uw, contexts, positions, t_labels = usages_out[w]
-            Uw_layerwise = Uw.reshape((Uw.shape[0], Uw.shape[1], ndims, -1))
-            Uw_sum = np.sum(Uw_layerwise, axis=3)
+            Uw_layerwise = Uw.reshape((Uw.shape[0], ndims, -1))
+            Uw_sum = np.sum(Uw_layerwise, axis=2)
             usages_out[w] = Uw_sum, contexts, positions, t_labels
 
     return usages_out
