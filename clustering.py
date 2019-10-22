@@ -452,14 +452,17 @@ def make_usage_pairs(snippets):
     :return: dictionary mapping lemmas to lists of annotated usage pairs
     """
     usage_pairs = defaultdict(list)
+    n = 0
     # obtain all possible pairs without repetitions
     for w in snippets:
         for pair in itertools.combinations(snippets[w], 2):
             usage_pairs[w].append(pair)
+            n += 1
     # randomly shuffle order of pairs
     for w in snippets:
         random.shuffle(usage_pairs[w])
 
+    print('{} usage pairs generated.'.format(n))
     return usage_pairs
 
 
