@@ -463,26 +463,27 @@ def make_usage_pairs(snippets):
     return usage_pairs
 
 
-def usage_pairs_tocsv(usage_pairs, output_path):
+def usage_pairs_totsv(usage_pairs, output_path):
     """
-    Store all usage pairs in a csv file.
+    Store all usage pairs in a tsv file.
 
     :param usage_pairs: dictionary mapping lemmas to lists of annotated usage pairs
-    :param output_path: path of the output csv file containing all usage pair examples
+    :param output_path: path of the output tsv file containing all usage pair examples
     """
     all_pairs = []
     for w in usage_pairs:
         all_pairs.extend(usage_pairs[w])
     random.shuffle(all_pairs)
 
+    separator = '\t'
     fields = ['lemma', 'id_a', 'id_b', 'cluster_a', 'cluster_b', 'time_a', 'time_b', 'a', 'b']
     with open(output_path, 'w') as f:
-        print(','.join(fields), file=f)
+        print(separator.join(fields), file=f)
         for u1, u2 in all_pairs:
             (w1, s_idx_1, cl_1, t_1, s_1) = u1
             (w2, s_idx_2, cl_2, t_2, s_2) = u2
             assert(w1 == w2)
-            print(','.join(map(str, [w1, s_idx_1, s_idx_2, cl_1, cl_2, t_1, t_2, s_1, s_2])), file=f)
+            print(separator.join(map(str, [w1, s_idx_1, s_idx_2, cl_1, cl_2, t_1, t_2, s_1, s_2])), file=f)
 
 
 @deprecated('Compute clustering instersection instead!')
