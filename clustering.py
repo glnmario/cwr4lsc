@@ -199,29 +199,21 @@ def make_usage_matrices(dict_path, mode='concat', usages_out=None, ndims=768):
     with open(dict_path, 'rb') as f:
         usages_in = pickle.load(f)
 
-    ndims_old = usages_in[list(usages_in.keys())[0]][0][0].shape[-1]
-    print('ndims_old:', ndims_old)
-
     if usages_out is None:
         usages_out = {}
         for w in usages_in:
-            usages_out[w] = (np.empty((0, ndims_old)), [], [], [])
+            usages_out[w] = (np.empty((0, ndims)), [], [], [])
 
     for w in tqdm(usages_in):
         for (vec, context, pos_in_context, decade) in usages_in[w]:
+            if mode == 'sum':
+                vec = np.sum(vec.reshape((ndims, -1)), axis=1)
             usages_out[w] = (
                 np.row_stack((usages_out[w][0], vec)),
                 usages_out[w][1] + [context],
                 usages_out[w][2] + [pos_in_context],
                 usages_out[w][3] + [decade]
             )
-
-    if mode == 'sum':
-        for w in usages_out:
-            Uw, contexts, positions, t_labels = usages_out[w]
-            Uw_layerwise = Uw.reshape((Uw.shape[0], ndims, -1))
-            Uw_sum = np.sum(Uw_layerwise, axis=2)
-            usages_out[w] = Uw_sum, contexts, positions, t_labels
 
     return usages_out
 
