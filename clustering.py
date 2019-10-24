@@ -2,11 +2,13 @@ import itertools
 import logging
 import pickle
 import random
-from collections import defaultdict
 
 import numpy as np
 import networkx as nx
+import plotly.graph_objs as go
+import plotly.io as pio
 
+from collections import defaultdict
 from deprecated import deprecated
 from tqdm import tqdm
 from string import ascii_uppercase
@@ -14,16 +16,13 @@ from sklearn import preprocessing
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score, calinski_harabasz_score
 from sklearn.mixture import GaussianMixture
-
-import plotly.graph_objs as go
-import plotly.io as pio
-
-
-# Preamble
 from transformers import BertTokenizer
 
-logging.basicConfig(level=logging.INFO)
+FIGURE_EIGHT_FIELDS = ['lemma', 'id_a', 'id_b', 'cluster_a', 'cluster_b', 'time_a', 'time_b', 'a', 'b']
+FIGURE_EIGHT_FIELDS_TEST = ['fieldname_gold', 'fieldname_gold_reason', '_golden']
 SEED = 42
+
+logging.basicConfig(level=logging.INFO)
 np.random.seed(SEED)
 
 
@@ -65,6 +64,7 @@ class GMM(object):
     """
     A Gaussian Mixture Model object, with its number of components, AIC and BIC scores.
     """
+
     def __init__(self, model=None):
         self.model = model
 
@@ -358,8 +358,10 @@ def parse_snippet(snippet, tokenizer, target_position):
     tokens = tokenizer.convert_ids_to_tokens(snippet)
 
     for pos, token in enumerate(tokens):
-        if token not in [',', '.', ';', ':', '!', '?'] and not token.startswith('##'):
+        if not token.startswith('##'):
             sentence += ' '
+        # if token not in [',', '.', ';', ':', '!', '?']:
+        #     sentence += ' '
 
         if pos == target_position:
             sentence += '[[{}]]'.format(token)
@@ -373,13 +375,13 @@ def parse_snippet(snippet, tokenizer, target_position):
             else:
                 sentence += token
 
-    return sentence
+    return sentence.strip()
 
 
 def prepare_snippets(usages, clusterings, pretrained_weights='models/bert-base-uncased', bin2label=None):
     """
     Collect usage snippets and organise them according to their usage type and time interval.
- 
+
     :param usages: dictionary mapping lemmas to their tensor data and metadata
     :param clusterings: dictionary mapping lemmas to their best clustering model
     :param pretrained_weights: path to BERT model folder with weights and config file
@@ -466,6 +468,73 @@ def make_usage_pairs(snippets):
     return usage_pairs
 
 
+def make_test_usage_pairs(snippets, shift=True, n_pairs_per_usage=1, max_offset=10):
+    """
+    Obtain test usage pairs.
+
+    :param snippets: dictionary mapping lemmas to lists of annotation tuples (snippet_id, cluster_id, time, snippet)
+    :param shift: whether to shift the sentence by a few tokens (max 10).
+    :param n_pairs_per_usage: number of test pairs to generate for each usage example
+    :return: dictionary mapping lemmas to lists of annotated test usage pairs
+    """
+    if n_pairs_per_usage > 1 and not shift:
+        raise ValueError(
+            'Generating more than 1 pair per usage without shift will result in {} identical pairs for each usage.'.format(
+                n_pairs_per_usage))
+    if n_pairs_per_usage > max_offset:
+        raise ValueError('Can only generate max_offset={} different pairs per usage.'.format(max_offset))
+
+    usage_pairs = defaultdict(list)
+    n = 0
+    # obtain all test pairs (s, s)
+    for w in snippets:
+        for snip in snippets[w]:
+            i = 0
+            offset_range = list(np.arange(max_offset + 1))
+
+            while i < n_pairs_per_usage:
+                if shift:
+                    (w, s_idx, cl, t, s) = snip
+
+                    # randomly decide how to shift the sentence
+                    offset = np.random.choice(offset_range)
+                    bos = np.random.choice([0, 1])  # 1: beginning of sentence  0: end of sentence
+
+                    s_shifted = s.split(' ')
+
+                    # shift sentence by `offset` positions starting from beginning or end of sentence
+                    n_del = int(offset)
+                    if bos:
+                        while n_del > 0 and not (s_shifted[0].startswith('[[') and s_shifted[0].endswith(']]')):
+                            s_shifted = s_shifted[1:]
+                            n_del -= 1
+                    else:
+                        while n_del > 0 and not (s_shifted[-1].startswith('[[') and s_shifted[-1].endswith(']]')):
+                            s_shifted = s_shifted[:-1]
+                            n_del -= 1
+
+                    s_shifted = ' '.join(s_shifted)
+                    snip2 = (w, s_idx, cl, t, s_shifted, offset, bos)
+                else:
+                    snip2 = snip
+
+                if random.random() < 0.5:
+                    usage_pairs[w].append((snip, snip2))
+                else:
+                    usage_pairs[w].append((snip2, snip))
+
+                offset_range.remove(offset)
+                i += 1
+            n += 1
+
+    # randomly shuffle order of pairs
+    for w in snippets:
+        random.shuffle(usage_pairs[w])
+
+    print('{} usage pairs generated.'.format(n))
+    return usage_pairs
+
+
 def usage_pairs_totsv(usage_pairs, output_path):
     """
     Store all usage pairs in a tsv file.
@@ -478,15 +547,40 @@ def usage_pairs_totsv(usage_pairs, output_path):
         all_pairs.extend(usage_pairs[w])
     random.shuffle(all_pairs)
 
-    separator = '\t'
-    fields = ['lemma', 'id_a', 'id_b', 'cluster_a', 'cluster_b', 'time_a', 'time_b', 'a', 'b']
     with open(output_path, 'w') as f:
-        print(separator.join(fields), file=f)
+        print('\t'.join(FIGURE_EIGHT_FIELDS), file=f)
         for u1, u2 in all_pairs:
             (w1, s_idx_1, cl_1, t_1, s_1) = u1
             (w2, s_idx_2, cl_2, t_2, s_2) = u2
-            assert(w1 == w2)
-            print(separator.join(map(str, [w1, s_idx_1, s_idx_2, cl_1, cl_2, t_1, t_2, s_1, s_2])), file=f)
+            assert w1 == w2
+            print('\t'.join(map(str, [w1, s_idx_1, s_idx_2, cl_1, cl_2, t_1, t_2, s_1, s_2])), file=f)
+
+    print('Saved to: {}'.format(output_path))
+
+
+def test_usage_pairs_totsv(usage_pairs, output_path):
+    """
+    Store all usage pairs in a tsv file.
+
+    :param usage_pairs: dictionary mapping lemmas to lists of annotated usage pairs
+    :param output_path: path of the output tsv file containing all usage pair examples
+    """
+    all_pairs = []
+    for w in usage_pairs:
+        all_pairs.extend(usage_pairs[w])
+    random.shuffle(all_pairs)
+
+    with open(output_path, 'w') as f:
+        print('\t'.join(FIGURE_EIGHT_FIELDS + ['offset', 'bos'] + FIGURE_EIGHT_FIELDS_TEST), file=f)
+        for u1, u2 in all_pairs:
+            (w1, s_idx_1, cl_1, t_1, s_1) = u1
+            (w2, s_idx_2, cl_2, t_2, s_2, offset, bos) = u2
+            assert w1 == w2
+            print('\t'.join(
+                map(str, [w1, s_idx_1, s_idx_2, cl_1, cl_2, t_1, t_2, s_1, s_2, offset, bos, 'identical', '', 'TRUE'])),
+                  file=f)
+
+    print('Saved to: {}'.format(output_path))
 
 
 @deprecated('Compute clustering instersection instead!')
