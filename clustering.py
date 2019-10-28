@@ -358,16 +358,23 @@ def find_sentence_boundaries(tokens, target_position):
     return start + 1, end
 
 
-def parse_snippet(snippet, tokenizer, target_position):
+def parse_snippet(snippet, tokenizer, target_position, affixation=False):
     """
     Parse a list of wordpiece token ids into a human-readable sentence string.
 
     :param snippet: list of token ids
     :param tokenizer: BertTokenizer object
     :param target_position: position of the target word in the token list
-    :return: sentence string with highlighted target word and reassebled word pieces
+    :param affixation: whether to keep snippets where the target word is part of a larger word (e.g. "wireless-ly")
+    :return: sentence string with highlighted target word and reassembled word pieces.
+             `None` if `affixation=True` and the target word is part of a larger word
     """
     tokens = tokenizer.convert_ids_to_tokens(snippet)
+
+    # avoid snippets where the target word is part of a larger word (e.g. wireless ##ly)
+    if (not affixation) and tokens[target_position + 1].startswith('##'):
+        return None
+
     bos, eos = find_sentence_boundaries(tokens, target_position)
     bos, _ = find_sentence_boundaries(tokens, bos - 2)
     _, eos = find_sentence_boundaries(tokens, eos + 1)
@@ -424,7 +431,9 @@ def prepare_snippets(usages, clusterings, pretrained_weights='models/bert-base-u
         for context, pos, cl, t in zip(contexts, positions, cl_labels, t_labels):
             if bin2label:
                 t = bin2label[t]
-            snippets[word][cl][t].append(parse_snippet(context, tokenizer, pos))
+            clean_snippet = parse_snippet(context, tokenizer, pos)
+            if clean_snippet:
+                snippets[word][cl][t].append(clean_snippet)
 
     return snippets
 
