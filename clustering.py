@@ -358,7 +358,7 @@ def find_sentence_boundaries(tokens, target_position):
     return start + 1, end
 
 
-def parse_snippet(snippet, tokenizer, target_position, affixation=False):
+def parse_snippet(snippet, tokenizer, target_position, affixation=False, min_context_size=5):
     """
     Parse a list of wordpiece token ids into a human-readable sentence string.
 
@@ -366,6 +366,7 @@ def parse_snippet(snippet, tokenizer, target_position, affixation=False):
     :param tokenizer: BertTokenizer object
     :param target_position: position of the target word in the token list
     :param affixation: whether to keep snippets where the target word is part of a larger word (e.g. "wireless-ly")
+    :param min_context_size: the minimum number of tokens that should appear before and after the target word
     :return: sentence string with highlighted target word and reassembled word pieces.
              `None` if `affixation=True` and the target word is part of a larger word
     """
@@ -378,6 +379,9 @@ def parse_snippet(snippet, tokenizer, target_position, affixation=False):
     bos, eos = find_sentence_boundaries(tokens, target_position)
     bos, _ = find_sentence_boundaries(tokens, bos - 2)
     _, eos = find_sentence_boundaries(tokens, eos + 1)
+
+    if min_context_size > target_position >= len(tokens) - min_context_size:
+        return None
 
     sentence = ''
     for pos, token in enumerate(tokens):
