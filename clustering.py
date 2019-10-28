@@ -406,6 +406,7 @@ def parse_snippet(snippet, tokenizer, target_position, affixation=False, min_con
 
     sentence = sentence.strip()
     sentence = sentence.replace('< p >', '')
+    sentence = sentence.replace('/ /', '')
     sentence = sentence.replace('& lt ;', '<')
     sentence = sentence.replace('& gt ;', '>')
     sentence = sentence.replace('  ', ' ')
