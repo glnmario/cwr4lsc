@@ -20,6 +20,7 @@ from transformers import BertTokenizer
 
 FIGURE_EIGHT_FIELDS = ['lemma', 'id_a', 'id_b', 'cluster_a', 'cluster_b', 'time_a', 'time_b', 'a', 'b']
 FIGURE_EIGHT_FIELDS_TEST = ['fieldname_gold', 'fieldname_gold_reason', '_golden']
+EOS_MARKERS = ['.', '!', '?']
 SEED = 42
 
 logging.basicConfig(level=logging.INFO)
@@ -345,6 +346,18 @@ def clustering_intersection(models):
     return meta_labels
 
 
+def find_sentence_boundaries(tokens, target_position):
+    start = int(target_position)
+    while len(tokens) > start >= 0 and tokens[start] not in EOS_MARKERS:
+        start -= 1
+
+    end = int(target_position)
+    while end < len(tokens) and tokens[end] not in EOS_MARKERS:
+        end += 1
+
+    return start + 1, end
+
+
 def parse_snippet(snippet, tokenizer, target_position):
     """
     Parse a list of wordpiece token ids into a human-readable sentence string.
@@ -354,28 +367,39 @@ def parse_snippet(snippet, tokenizer, target_position):
     :param target_position: position of the target word in the token list
     :return: sentence string with highlighted target word and reassebled word pieces
     """
-    sentence = ''
     tokens = tokenizer.convert_ids_to_tokens(snippet)
+    bos, eos = find_sentence_boundaries(tokens, target_position)
+    bos, _ = find_sentence_boundaries(tokens, bos - 2)
+    _, eos = find_sentence_boundaries(tokens, eos + 1)
 
+    sentence = ''
     for pos, token in enumerate(tokens):
-        if not token.startswith('##'):
-            sentence += ' '
+        if pos < bos:
+            continue
+        if pos > eos:
+            break
+
         # if token not in [',', '.', ';', ':', '!', '?']:
         #     sentence += ' '
-
+        if not token.startswith('##'):
+            sentence += ' '
         if pos == target_position:
             sentence += '[[{}]]'.format(token)
         else:
             if token.startswith('##'):
                 sentence += token[2:]
-            elif token == '[PAD]':
+            elif token in ['[PAD]', '[UNK]']:
                 continue
-            elif token == '[UNK]':
-                sentence += 'UNK'
             else:
                 sentence += token
 
-    return sentence.strip()
+    sentence = sentence.strip()
+    sentence = sentence.replace('< p >', '')
+    sentence = sentence.replace('& lt ;', '<')
+    sentence = sentence.replace('& gt ;', '>')
+    sentence = sentence.replace('  ', ' ')
+
+    return sentence
 
 
 def prepare_snippets(usages, clusterings, pretrained_weights='models/bert-base-uncased', bin2label=None):
@@ -514,7 +538,7 @@ def make_test_usage_pairs(snippets, shift=True, n_pairs_per_usage=1, max_offset=
                             n_del -= 1
 
                     s_shifted = ' '.join(s_shifted)
-                    snip2 = (w, s_idx, cl, t, s_shifted, offset, bos)
+                    snip2 = (w, s_idx, cl, t, s_shifted)
                 else:
                     snip2 = snip
 
@@ -546,14 +570,14 @@ def usage_pairs_totsv(usage_pairs, output_path):
     for w in usage_pairs:
         all_pairs.extend(usage_pairs[w])
     random.shuffle(all_pairs)
-
+    SEP = '\t'
     with open(output_path, 'w') as f:
-        print('\t'.join(FIGURE_EIGHT_FIELDS), file=f)
+        print(SEP.join(FIGURE_EIGHT_FIELDS), file=f)
         for u1, u2 in all_pairs:
             (w1, s_idx_1, cl_1, t_1, s_1) = u1
             (w2, s_idx_2, cl_2, t_2, s_2) = u2
             assert w1 == w2
-            print('\t'.join(map(str, [w1, s_idx_1, s_idx_2, cl_1, cl_2, t_1, t_2, s_1, s_2])), file=f)
+            print(SEP.join(map(str, [w1, s_idx_1, s_idx_2, cl_1, cl_2, t_1, t_2, s_1, s_2])), file=f)
 
     print('Saved to: {}'.format(output_path))
 
@@ -571,13 +595,13 @@ def test_usage_pairs_totsv(usage_pairs, output_path):
     random.shuffle(all_pairs)
 
     with open(output_path, 'w') as f:
-        print('\t'.join(FIGURE_EIGHT_FIELDS + ['offset', 'bos'] + FIGURE_EIGHT_FIELDS_TEST), file=f)
+        print('\t'.join(FIGURE_EIGHT_FIELDS + FIGURE_EIGHT_FIELDS_TEST), file=f)
         for u1, u2 in all_pairs:
             (w1, s_idx_1, cl_1, t_1, s_1) = u1
-            (w2, s_idx_2, cl_2, t_2, s_2, offset, bos) = u2
+            (w2, s_idx_2, cl_2, t_2, s_2) = u2
             assert w1 == w2
             print('\t'.join(
-                map(str, [w1, s_idx_1, s_idx_2, cl_1, cl_2, t_1, t_2, s_1, s_2, offset, bos, 'identical', '', 'TRUE'])),
+                map(str, [w1, s_idx_1, s_idx_2, cl_1, cl_2, t_1, t_2, s_1, s_2, 'identical', '', 'TRUE'])),
                   file=f)
 
     print('Saved to: {}'.format(output_path))
