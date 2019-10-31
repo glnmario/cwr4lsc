@@ -514,6 +514,7 @@ def make_test_usage_pairs(snippets, shift=True, n_pairs_per_usage=1, max_offset=
     :param shift: whether to shift the sentence by a few tokens (max 10).
     :param n_pairs_per_usage: number of test pairs to generate for each usage example
     :return: dictionary mapping lemmas to lists of annotated test usage pairs
+    :param max_offset: maximum number of tokens to shift left or right
     """
     if n_pairs_per_usage > 1 and not shift:
         raise ValueError(
