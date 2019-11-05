@@ -371,9 +371,8 @@ def parse_snippet(snippet, tokenizer, target_position, affixation=False, min_con
              `None` if `affixation=True` and the target word is part of a larger word
     """
     tokens = tokenizer.convert_ids_to_tokens(snippet)
-
     # avoid snippets where the target word is part of a larger word (e.g. wireless ##ly)
-    if (not affixation) and tokens[target_position + 1].startswith('##'):
+    if affixation is False and tokens[target_position + 1].startswith('##'):
         return None
 
     bos, eos = find_sentence_boundaries(tokens, target_position)
@@ -414,7 +413,7 @@ def parse_snippet(snippet, tokenizer, target_position, affixation=False, min_con
     return sentence
 
 
-def prepare_snippets(usages, clusterings, pretrained_weights='models/bert-base-uncased', bin2label=None):
+def prepare_snippets(usages, clusterings, pretrained_weights='models/bert-base-uncased', bin2label=None, affixation=False):
     """
     Collect usage snippets and organise them according to their usage type and time interval.
 
@@ -435,10 +434,10 @@ def prepare_snippets(usages, clusterings, pretrained_weights='models/bert-base-u
 
         for context, pos, cl, t in zip(contexts, positions, cl_labels, t_labels):
             if bin2label:
-                t = bin2label[t]
-            clean_snippet = parse_snippet(context, tokenizer, pos)
-            if clean_snippet:
-                snippets[word][cl][t].append(clean_snippet)
+                t_ = bin2label[t]
+            clean_snippet = parse_snippet(context, tokenizer, pos, affixation=affixation)
+            if clean_snippet is not None:
+                snippets[word][cl][t_].append(clean_snippet)
 
     return snippets
 
@@ -464,14 +463,29 @@ def sample_snippets(snippets, time_periods):
                 sample = None
 
                 while (sample is None) or (sample in snippet_lists[w]):
-                    if population:
+                    if population and any([s not in snippet_lists[w] for s in population]):
                         sample_idx = np.random.choice(np.arange(len(population)))
                         sample = population[sample_idx]
                     else:
                         # if there are no snippets of cluster `cl` in time `t`, uniformly sample
                         # an alternative time interval to draw a usage example from
-                        sample_t = np.random.choice(list(snippets[w][cl].keys()))
-                        population = snippets[w][cl][sample_t]
+                        # if there are no snippets of cluster `cl` for any time `t`, uniformly sample
+                        # an alternative cluster to draw a usage example
+                        valid_samples = False
+                        for _t in snippets[w][cl]:
+                            if snippets[w][cl][_t] and any([s not in snippet_lists[w] for s in snippets[w][cl][_t]]):
+                                valid_samples = True
+                                break
+
+                        if valid_samples:
+                            sample_t = np.random.choice(list(snippets[w][cl].keys()))
+                            population = snippets[w][cl][sample_t]
+                        else:
+                            cl_pop = list(snippets[w].keys())
+                            cl_pop.remove(cl)
+                            sample_cl = np.random.choice(cl_pop)
+                            sample_t = np.random.choice(list(snippets[w][sample_cl].keys()))
+                            population = snippets[w][sample_cl][sample_t]
 
                 snippet_lists[w].append(sample)
                 snippet_labels[w].append((cl, t))
@@ -617,7 +631,7 @@ def test_usage_pairs_totsv(usage_pairs, output_path):
             assert w1 == w2
             print('\t'.join(
                 map(str, [w1, s_idx_1, s_idx_2, cl_1, cl_2, t_1, t_2, s_1, s_2, 'identical', '', 'TRUE'])),
-                  file=f)
+                file=f)
 
     print('Saved to: {}'.format(output_path))
 
