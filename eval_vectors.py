@@ -67,13 +67,13 @@ for w in judgements:
 
 
 
-tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-# tokenizer = BertTokenizer.from_pretrained('bert-large-uncased')
-
-# lm = BertModel.from_pretrained('bert-base-uncased', output_hidden_states=True)
-lm = BertModel.from_pretrained(
-    'bert-large-uncased',
-    output_hidden_states=True)
+# tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+# # tokenizer = BertTokenizer.from_pretrained('bert-large-uncased')
+#
+# # lm = BertModel.from_pretrained('bert-base-uncased', output_hidden_states=True)
+# lm = BertModel.from_pretrained(
+#     'bert-large-uncased',
+#     output_hidden_states=True)
 
 
 def cosine_similarity(a, b):
@@ -91,9 +91,9 @@ def integers_contiguous(array):
     return True
 
 
-def layer_sequences(min=1, max=12):
+def layer_sequences(min=1, max=12, reverse=True):
     range_ = list(range(min, max+1))
-    for n_layers in sorted(range(1, max - min + 1), reverse=True):
+    for n_layers in sorted(range(1, max - min + 1), reverse=reverse):
         for seq in itertools.permutations(range_, n_layers):
             seq = list(seq)
             if seq == sorted(seq) and integers_contiguous(seq):
@@ -201,10 +201,13 @@ for MODEL in ['bert-base-uncased']:  #, 'bert-large-uncased']:
                             bert_sim_matrices[lemma][id_b, id_a] = sim_score
 
                     layer_seq_str = ','.join(list(map(str, LAYER_SEQ)))
-                    with open('{}_{}-{}.dict'.format(MODEL, MODE, layer_seq_str), 'wb') as f:
+                    with open('{}-{}-{}.dict'.format(MODEL, MODE, layer_seq_str), 'wb') as f:
                         pickle.dump(obj=bert_sim_matrices, file=f)
 
 
+# with open('bert-base-uncased_sum-2-.dict', 'rb') as f:
+#     bert_sim_matrices = pickle.load(f)
+#
 # coeffs = {}
 # sig_coeffs = {}
 # for w in bert_sim_matrices:
