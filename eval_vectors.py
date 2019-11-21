@@ -91,14 +91,13 @@ def integers_contiguous(array):
     return True
 
 
-def layer_sequences(min=1, max=12, reverse=True):
+def layer_sequences(min, max, reverse=True):
     range_ = list(range(min, max+1))
-    for n_layers in sorted(range(1, max - min + 1), reverse=reverse):
+    for n_layers in sorted(range(1, max - min + 2), reverse=reverse):
         for seq in itertools.permutations(range_, n_layers):
             seq = list(seq)
             if seq == sorted(seq) and integers_contiguous(seq):
                 yield seq
-
 
 
 for MODEL in ['bert-base-uncased']:  #, 'bert-large-uncased']:
@@ -107,11 +106,12 @@ for MODEL in ['bert-base-uncased']:  #, 'bert-large-uncased']:
 
     LAST_LAYER = 12 if MODEL == 'bert-base-uncased' else 24
 
-    for MODE in ['sum', 'cat']:
-        for START_LAYER in [0, 1]:
-            # for END_LAYER in range(-6, 0):
-            for LAYER_SEQ in layer_sequences(START_LAYER, LAST_LAYER):
 
+    for START_LAYER in [1, 0]:
+            # for END_LAYER in range(-6, 0):
+        for LAYER_SEQ in layer_sequences(START_LAYER, LAST_LAYER):
+
+            for MODE in ['sum', 'cat']:
                 print(MODE, LAYER_SEQ)
 
                 bert_sim_matrices = {}
