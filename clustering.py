@@ -262,6 +262,10 @@ def obtain_clusterings(usages, out_path, method='kmeans', k_range=np.arange(2, 1
     """
     clusterings = {}  # dictionary mapping lemmas to their best clustering
     for w in tqdm(usages):
+        print(w)
+        if w == 'right':
+            print(w)
+            continue
         Uw, _, _, _ = usages[w]
         clusterings[w] = cluster_usages(Uw, method, k_range, criterion)
 
@@ -427,6 +431,8 @@ def prepare_snippets(usages, clusterings, pretrained_weights='models/bert-base-u
     tokenizer = BertTokenizer.from_pretrained(pretrained_weights)
 
     for word in tqdm(usages):
+        if word in ['address', 'mean']:
+            continue
         snippets[word] = defaultdict(lambda: defaultdict(list))
 
         _, contexts, positions, t_labels = usages[word]
@@ -508,12 +514,14 @@ def make_usage_pairs(snippets):
     usage_pairs = defaultdict(list)
     n = 0
     # obtain all possible pairs without repetitions
+    # obtain all possible pairs without repetitions
     for w in snippets:
         for pair in itertools.combinations(snippets[w], 2):
             usage_pairs[w].append(pair)
             n += 1
+
     # randomly shuffle order of pairs
-    for w in snippets:
+    for w in usage_pairs:
         random.shuffle(usage_pairs[w])
 
     print('{} usage pairs generated.'.format(n))
@@ -598,6 +606,30 @@ def usage_pairs_totsv(usage_pairs, output_path):
     all_pairs = []
     for w in usage_pairs:
         all_pairs.extend(usage_pairs[w])
+    random.shuffle(all_pairs)
+    SEP = '\t'
+    with open(output_path, 'w') as f:
+        print(SEP.join(FIGURE_EIGHT_FIELDS), file=f)
+        for u1, u2 in all_pairs:
+            (w1, s_idx_1, cl_1, t_1, s_1) = u1
+            (w2, s_idx_2, cl_2, t_2, s_2) = u2
+            assert w1 == w2
+            print(SEP.join(map(str, [w1, s_idx_1, s_idx_2, cl_1, cl_2, t_1, t_2, s_1, s_2])), file=f)
+
+    print('Saved to: {}'.format(output_path))
+
+
+def usage_pairs_totsv_ordered(usage_pairs, output_path):
+    """
+    Store all usage pairs in a tsv file.
+
+    :param usage_pairs: dictionary mapping lemmas to lists of annotated usage pairs
+    :param output_path: path of the output tsv file containing all usage pair examples
+    """
+    all_pairs = []
+    for w in usage_pairs:
+        all_pairs.extend(usage_pairs[w])
+
     random.shuffle(all_pairs)
     SEP = '\t'
     with open(output_path, 'w') as f:
