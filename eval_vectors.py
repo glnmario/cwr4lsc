@@ -200,9 +200,33 @@ for MODEL in ['bert-base-uncased']:  #, 'bert-large-uncased']:
                             bert_sim_matrices[lemma][id_a, id_b] = sim_score
                             bert_sim_matrices[lemma][id_b, id_a] = sim_score
 
-                    layer_seq_str = ','.join(list(map(str, LAYER_SEQ)))
-                    with open('{}-{}-{}.dict'.format(MODEL, MODE, layer_seq_str), 'wb') as f:
-                        pickle.dump(obj=bert_sim_matrices, file=f)
+                layer_seq_str = ','.join(list(map(str, LAYER_SEQ)))
+                with open('{}-{}-{}.dict'.format(MODEL, MODE, layer_seq_str), 'wb') as f:
+                    pickle.dump(obj=bert_sim_matrices, file=f)
+
+                coeffs = {}
+                sig_coeffs = {}
+                for w in bert_sim_matrices:
+                    coeff, p_value, n = mantel(
+                        sim_matrices[w],
+                        bert_sim_matrices[w],
+                        method='spearman',  # pearson
+                        permutations=999,
+                        alternative='two-sided'  # greater, less
+                    )
+                    print(w)
+                    print('spearman: {:.2f}    p: {:.2f}'.format(coeff, p_value))
+
+                    coeffs[w] = coeff, p_value
+                    if p_value < 0.05:
+                        sig_coeffs[w] = coeff, p_value
+
+                print('{}/{} significant correlations'.format(len(sig_coeffs), len(coeffs)))
+                for w, (c, p) in sig_coeffs:
+                    print('{}  spearman: {:.2f}    p: {:.2f}'.format(w, c, p))
+
+                with open('{}-{}-{}.corrs.dict'.format(MODEL, MODE, layer_seq_str), 'wb') as f:
+                    pickle.dump(obj=bert_sim_matrices, file=f)
 
 
 # with open('bert-base-uncased_sum-2-.dict', 'rb') as f:
