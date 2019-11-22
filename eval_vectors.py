@@ -107,11 +107,11 @@ for MODEL in ['bert-base-uncased']:  #, 'bert-large-uncased']:
     LAST_LAYER = 12 if MODEL == 'bert-base-uncased' else 24
 
 
-    for START_LAYER in [1, 0]:
+    for START_LAYER in [0, 1]:
             # for END_LAYER in range(-6, 0):
-        for LAYER_SEQ in layer_sequences(START_LAYER, LAST_LAYER):
+        for LAYER_SEQ in layer_sequences(START_LAYER, LAST_LAYER, reverse=False):
 
-            for MODE in ['sum', 'cat']:
+            for MODE in ['cat']: #, 'cat']:
                 print(MODE, LAYER_SEQ)
 
                 bert_sim_matrices = {}
@@ -222,7 +222,7 @@ for MODEL in ['bert-base-uncased']:  #, 'bert-large-uncased']:
                         sig_coeffs[w] = coeff, p_value
 
                 print('{}/{} significant correlations'.format(len(sig_coeffs), len(coeffs)))
-                for w, (c, p) in sig_coeffs:
+                for w, (c, p) in sig_coeffs.items():
                     print('{}  spearman: {:.2f}    p: {:.2f}'.format(w, c, p))
 
                 with open('{}-{}-{}.corrs.dict'.format(MODEL, MODE, layer_seq_str), 'wb') as f:
