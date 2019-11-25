@@ -91,27 +91,29 @@ def integers_contiguous(array):
     return True
 
 
-def layer_sequences(min, max, reverse=True):
+def layer_sequences(min, max, lengths=None, reverse=True):
     range_ = list(range(min, max+1))
-    for n_layers in sorted(range(1, max - min + 2), reverse=reverse):
+    if not lengths:
+        lengths = sorted(range(1, max - min + 2), reverse=reverse)
+    for n_layers in lengths:
         for seq in itertools.permutations(range_, n_layers):
             seq = list(seq)
             if seq == sorted(seq) and integers_contiguous(seq):
                 yield seq
 
 
-for MODEL in ['bert-base-uncased']:  #, 'bert-large-uncased']:
+for MODEL in ['bert-large-uncased']:  #, 'bert-large-uncased']:
     tokenizer = BertTokenizer.from_pretrained(MODEL)
     lm = BertModel.from_pretrained(MODEL, output_hidden_states=True)
 
     LAST_LAYER = 12 if MODEL == 'bert-base-uncased' else 24
 
 
-    for START_LAYER in [0, 1]:
+    for START_LAYER in [1, 0]:
             # for END_LAYER in range(-6, 0):
-        for LAYER_SEQ in layer_sequences(START_LAYER, LAST_LAYER, reverse=False):
+        for LAYER_SEQ in layer_sequences(START_LAYER, LAST_LAYER, lengths=[24], reverse=False):
 
-            for MODE in ['cat']: #, 'cat']:
+            for MODE in ['sum', 'cat']:
                 print(MODE, LAYER_SEQ)
 
                 bert_sim_matrices = {}
@@ -227,27 +229,5 @@ for MODEL in ['bert-base-uncased']:  #, 'bert-large-uncased']:
 
                 with open('{}-{}-{}.corrs.dict'.format(MODEL, MODE, layer_seq_str), 'wb') as f:
                     pickle.dump(obj=bert_sim_matrices, file=f)
-
-
-# with open('bert-base-uncased_sum-2-.dict', 'rb') as f:
-#     bert_sim_matrices = pickle.load(f)
-#
-# coeffs = {}
-# sig_coeffs = {}
-# for w in bert_sim_matrices:
-#     coeff, p_value, n = mantel(
-#         sim_matrices[w],
-#         bert_sim_matrices[w],
-#         method='spearman',  # pearson
-#         permutations=999,
-#         alternative='two-sided'  # greater, less
-#     )
-#     print(w)
-#     print('spearman: {:.2f}    p: {:.2f}'.format(coeff, p_value))
-#
-#     coeffs[w] = coeff
-#     if p_value < 0.05:
-#         sig_coeffs[w] = coeff
-#         print('---')
 
 
