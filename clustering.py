@@ -208,7 +208,7 @@ def make_usage_matrices(dict_path, mode='concat', usages_out=None, ndims=768):
     for w in tqdm(usages_in):
         for (vec, context, pos_in_context, decade) in usages_in[w]:
             if mode == 'sum':
-                vec = np.sum(vec.reshape((ndims, -1)), axis=1)
+                vec = np.sum(vec.reshape((ndims, -1))[:, 1:], axis=1)
             usages_out[w] = (
                 np.row_stack((usages_out[w][0], vec)),
                 usages_out[w][1] + [context],
