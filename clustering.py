@@ -10,6 +10,7 @@ import plotly.io as pio
 
 from collections import defaultdict
 from deprecated import deprecated
+from scipy.spatial.distance import cdist
 from tqdm import tqdm
 from string import ascii_uppercase
 from sklearn import preprocessing
@@ -692,3 +693,58 @@ def percentage_agreement(models):
             tot += 1
 
     return agreement / tot
+
+
+def get_prototypes(word, clustering, usages, n=5, window=10):
+    if len(usages) == 4:
+        U_w, contexts, positions, t_labels = usages
+    else:
+        raise ValueError('Invalid argument "usages"')
+
+    # list of placeholder for cluster matrices and the respective sentences
+    clusters = []
+    snippet_coords = []
+    for i in range(clustering.cluster_centers_.shape[0]):
+        clusters.append(None)
+        snippet_coords.append([])
+
+    # fill placeholders with cluster matrices
+    for u_w, sent, pos, cls in zip(U_w, contexts, positions, clustering.predict(U_w)):
+        if clusters[cls] is None:
+            clusters[cls] = u_w
+        else:
+            clusters[cls] = np.vstack((clusters[cls], u_w))
+        snippet_coords[cls].append((sent, pos))
+
+
+    prototypes = []
+    for cls in range(len(clusters)):
+        # each cluster is represented by a list of sentences
+        prototypes.append([])
+
+        # skip cluster if it is empty for this interval
+        if clusters[cls] is None:
+            continue
+
+        # obtain the n closest data points in this cluster to overall cluster centers
+        nearest = np.argsort(cdist(clustering.cluster_centers_, clusters[cls]), axis=1)[:, -n:]
+
+        tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+
+        # loop through cluster-specific indices
+        for i in nearest[cls]:
+            sent, pos = snippet_coords[cls][i]
+            # sent = sent.split()
+
+            sent = tokenizer.convert_ids_to_tokens(sent)
+            assert sent[pos] == word
+            sent[pos] = '[[{}]]'.format(word)
+            sent = sent[pos - window: pos + window + 1]
+            sent = ' '.join(sent)
+
+            if sent not in prototypes[-1]:
+                prototypes[-1].append(sent)
+            if len(prototypes) == n:
+                break
+
+    return prototypes
