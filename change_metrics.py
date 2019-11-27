@@ -5,11 +5,14 @@ from sklearn import preprocessing
 from tqdm import tqdm
 
 
-def entropy_timeseries(usage_distribution):
+def entropy_timeseries(usage_distribution, intervals=None):
     """
     :param usage_distribution: a CxT diachronic usage distribution matrix
     :return: array of entropy values, one for each usage distribution
     """
+    if intervals:
+        usage_distribution = usage_distribution[:, intervals]
+
     usage_distribution = preprocessing.normalize(usage_distribution, norm='l1', axis=0)
 
     H = []
@@ -24,12 +27,15 @@ def entropy_timeseries(usage_distribution):
     return np.array(H)
 
 
-def entropy_difference_timeseries(usage_distribution):
+def entropy_difference_timeseries(usage_distribution, absolute=True, intervals=None):
     """
     :param usage_distribution: a CxT diachronic usage distribution matrix
     :return: array of entropy differences between contiguous usage distributions
     """
-    return np.array([abs(d) for d in np.diff(entropy_timeseries(usage_distribution))])
+    if absolute:
+        return np.array([abs(d) for d in np.diff(entropy_timeseries(usage_distribution, intervals))])
+    else:
+        return np.diff(entropy_timeseries(usage_distribution, intervals))
 
 
 def js_divergence(*usage_distribution):
@@ -52,12 +58,15 @@ def js_distance(*usage_distribution):
     return np.sqrt(js_divergence(usage_distribution))
 
 
-def jsd_timeseries(usage_distribution, dfunction=js_divergence):
+def jsd_timeseries(usage_distribution, dfunction=js_divergence, intervals=None):
     """
     :param usage_distribution: a CxT diachronic usage distribution matrix
     :param dfunction: a JSD function (js_divergence or js_distance)
     :return: array of JSD between contiguous usage distributions
     """
+    if intervals:
+        usage_distribution = usage_distribution[:, intervals]
+
     usage_distribution = preprocessing.normalize(usage_distribution, norm='l1', axis=0)
     distances = []
     for t in range(usage_distribution.shape[1] - 1):
@@ -73,7 +82,7 @@ def jsd_timeseries(usage_distribution, dfunction=js_divergence):
     return np.array(distances)
 
 
-def avg_pairwise_distance_timeseries(usages, metrics=('cosine', 'canberra')):
+def avg_pairwise_distance_timeseries(usages, metrics=('cosine', 'canberra'), interval_labels=None):
     """
     :param usages: 4-place data structure containing usage vectors, sentences, sentence positions, and time labels
     :param metrics: a list or tuple of metric names for scipy.spatial.distance.cdist
@@ -83,6 +92,8 @@ def avg_pairwise_distance_timeseries(usages, metrics=('cosine', 'canberra')):
 
     by_time = {}
     for u_w, sent, pos, t_label in zip(U_w, contexts, pos_in_context, t_labels):
+        if interval_labels and t_label not in interval_labels:
+            continue
         try:
             by_time[t_label] = np.vstack((by_time[t_label], u_w))
         except KeyError:
