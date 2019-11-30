@@ -189,6 +189,7 @@ def make_usage_matrices(dict_path, mode='concat', usages_out=None, ndims=768):
     """
     Take as input a usage dictionary containing single usage vectors (and their metadata)
     and return a dictionary that maps lemmas to usage matrices (and the same metadata).
+    and return a dictionary that maps lemmas to usage matrices (and the same metadata).
 
     :param dict_path: path to the pickled usage dictionary
     :param mode: 'sum' or 'concatenation'
@@ -205,6 +206,10 @@ def make_usage_matrices(dict_path, mode='concat', usages_out=None, ndims=768):
         usages_out = {}
         for w in usages_in:
             usages_out[w] = (np.empty((0, ndims)), [], [], [])
+    else:
+        for w in usages_in:
+            if w not in usages_out:
+                usages_out[w] = (np.empty((0, ndims)), [], [], [])
 
     for w in tqdm(usages_in):
         for (vec, context, pos_in_context, decade) in usages_in[w]:
@@ -264,9 +269,6 @@ def obtain_clusterings(usages, out_path, method='kmeans', k_range=np.arange(2, 1
     clusterings = {}  # dictionary mapping lemmas to their best clustering
     for w in tqdm(usages):
         print(w)
-        if w == 'right':
-            print(w)
-            continue
         Uw, _, _, _ = usages[w]
         clusterings[w] = cluster_usages(Uw, method, k_range, criterion)
 
