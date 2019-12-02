@@ -129,7 +129,7 @@ def collect_from_coha(target_words,
                         # usage_vectors = hidden_states.view(hidden_states.shape[1],
                         #                                    hidden_states.shape[2],
                         #                                    -1)
-                        usage_vectors = np.sum(hidden_states[1:, :, :, :])
+                        usage_vectors = np.sum(hidden_states[1:, :, :, :], axis=0)
                         # usage_vectors = hidden_states.reshape((hidden_states.shape[1], hidden_states.shape[2], -1))
 
                     if output_path and os.path.exists(output_path):
