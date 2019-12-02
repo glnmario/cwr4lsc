@@ -185,7 +185,43 @@ def usage_distribution(predictions, time_labels):
     return usage_distr
 
 
-def make_usage_matrices(dict_path, mode='concat', usages_out=None, ndims=768):
+def make_usage_matrices(dict_path, usages_out=None, ndims=768):
+    """
+    Take as input a usage dictionary containing single usage vectors (and their metadata)
+    and return a dictionary that maps lemmas to usage matrices (and the same metadata).
+    and return a dictionary that maps lemmas to usage matrices (and the same metadata).
+
+    :param dict_path: path to the pickled usage dictionary
+    :param usages_out: dictionary to map words to usage matrices (and their metadata)
+    :param ndims: dimensionality of usage vectors
+    :return: dictionary mapping words to usage matrices and their metadata: w -> (Uw, contexts, positions, time_labels)
+    """
+
+    with open(dict_path, 'rb') as f:
+        usages_in = pickle.load(f)
+
+    if usages_out is None:
+        usages_out = {}
+        for w in usages_in:
+            usages_out[w] = (np.empty((0, ndims)), [], [], [])
+    else:
+        for w in usages_in:
+            if w not in usages_out:
+                usages_out[w] = (np.empty((0, ndims)), [], [], [])
+
+    for w in tqdm(usages_in):
+        for (vec, context, pos_in_context, decade) in usages_in[w]:
+            usages_out[w] = (
+                np.row_stack((usages_out[w][0], vec)),
+                usages_out[w][1] + [context],
+                usages_out[w][2] + [pos_in_context],
+                usages_out[w][3] + [decade]
+            )
+
+    return usages_out
+
+
+def make_usage_matrices_(dict_path, mode='concat', usages_out=None, ndims=768):
     """
     Take as input a usage dictionary containing single usage vectors (and their metadata)
     and return a dictionary that maps lemmas to usage matrices (and the same metadata).
@@ -214,7 +250,7 @@ def make_usage_matrices(dict_path, mode='concat', usages_out=None, ndims=768):
     for w in tqdm(usages_in):
         for (vec, context, pos_in_context, decade) in usages_in[w]:
             if mode == 'sum':
-                vec = np.sum(vec.reshape((ndims, -1))[:, 1:], axis=1)
+                vec = np.sum(vec.reshape((-1, ndims))[1:, :], axis=1)
             usages_out[w] = (
                 np.row_stack((usages_out[w][0], vec)),
                 usages_out[w][1] + [context],
