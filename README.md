@@ -1,4 +1,3 @@
-# cwr4lsc
-Contextualised Word Representations for Lexical Semantic Change
+# Contextualised Word Representations for Lexical Semantic Change
 
-Documentation for this repository coming soon! 
+29 April: Documentation for this repository coming soon! 
