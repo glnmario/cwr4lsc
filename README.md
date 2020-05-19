@@ -6,8 +6,10 @@ Mario Giulianelli, Marco Del Tredici, and Raquel Fernández. 2020. [Analysing Le
 
 We also make public the [DUPS (Diachronic Usage Pair Similarity)](https://doi.org/10.5281/zenodo.3773250) dataset, which contains similarity judgements of English word usage pairs from different time periods, as described in the paper.
 
-Check the [semeval2020](https://github.com/akutuzov/semeval2020) repository with updated code for change detection on multiple languages and with multiple language models.
 
 ---
 
-29 April: Documentation for this repository coming soon! 
+
+- Check the [semeval2020](https://github.com/akutuzov/semeval2020) repository with updated code for change detection on multiple languages and with multiple language models.
+
+- 29 April: Documentation for this repository coming soon! 
